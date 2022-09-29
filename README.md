@@ -2,18 +2,21 @@
 
 Schematic: hardware.txt
 
-*UART Mode (Sync Time / Alarms with computer over serial):*
+![Sync Mode](images/watch.jpeg)
 
-![UART Mode](images/watch.jpeg)
-
-*Show current time: (Yeah, I know I need to fix my sleep schedule xD)*
+*Show current time:*
 
 ![Clock](images/watch.gif)
 
+Features:
+
+- *Roll a die*
+- *Scrolling Text*
+- *Sync Time and alarms with computer over serial*
+
 ## Challenges
 
-Getting the code to fit in just 2048 bytes ...
-Currently code size stands at 2028.
+Optimizing the code to fit in just 2048 bytes ...
 
 ## Notes
 
