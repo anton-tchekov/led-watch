@@ -1,16 +1,15 @@
-static uint8_t _cur, _buf[4];
+static uint8_t _cur, _buf[6];
 
 static void scroll_update(void)
 {
-	static uint16_t _cnt;
-	if(++_cnt < 3000)
+	static uint8_t _cnt;
+	if(++_cnt < 40)
 	{
 		return;
 	}
 
 	_cnt = 0;
-
-	if(_cur < 4)
+	if(_cur < 6)
 	{
 		uint8_t lines[5], i, o, w, v, j, s = 0;
 		v = _buf[_cur];
@@ -38,18 +37,14 @@ static void scroll_update(void)
 			}
 		}
 
-		_display =
-			((uint32_t)(lines[0]) <<  0UL) |
-			((uint32_t)(lines[1]) <<  5UL) |
-			((uint32_t)(lines[2]) << 10UL) |
-			((uint32_t)(lines[3]) << 15UL) |
-			((uint32_t)(lines[4]) << 20UL);
+		display_set(lines);
 	}
-
-	if(++_cur == 5)
+	else
 	{
 		mode_idle();
 	}
+
+	++_cur;
 }
 
 static void mode_clock(void)
@@ -58,6 +53,8 @@ static void mode_clock(void)
 	_buf[1] = _hours % 10;
 	_buf[2] = _minutes / 10;
 	_buf[3] = _minutes % 10;
+	_buf[4] = _seconds / 10;
+	_buf[5] = _seconds % 10;
 	_cur = 0;
 	_mode = MODE_CLOCK;
 }

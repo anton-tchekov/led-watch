@@ -75,32 +75,21 @@ static int init_fd(char *port)
 	return fd;
 }
 
-const char *_weekdays[7] =
-{
-	"Sunday",
-	"Monday",
-	"Tuesday",
-	"Wednesday",
-	"Thursday",
-	"Friday",
-	"Saturday"
-};
-
 typedef struct ALARM
 {
-	int Minute, Hour, Weekday;
-	char Icon[32];
+	int Minute, Hour;
+	unsigned char Icon[5];
 } Alarm;
 
 int main(int argc, char **argv)
 {
 	FILE *fp;
-	int i, j, k, fd, day, hour, minute, num_alarms;
-	Alarm alarms[6];
+	int i, j, k, fd, hour, minute, second, num_alarms;
+	Alarm alarms[4];
 	char *port, *filename, buf[512];
-	if(argc != 3)
+	if(argc != 4)
 	{
-		fprintf(stderr, "Usage: ./sync port alarms-file\n");
+		fprintf(stderr, "Usage: ./sync port alarms-file scroll-text\n");
 		return 1;
 	}
 
@@ -121,28 +110,8 @@ int main(int argc, char **argv)
 
 		char *p, *q;
 		p = buf;
-		while(*p != ',')
-		{
-			if(*p == '\0')
-			{
-				printf("Invalid format: Comma not found.\n");
-				return 1;
-			}
 
-			++p;
-		}
-
-		*p = '\0';
-		for(i = 0; i < 7; ++i)
-		{
-			if(strcmp(buf, _weekdays[i]) == 0)
-			{
-				break;
-			}
-		}
-
-		p += 2;
-		q = p;
+		q = p + 2;
 		while(*q != ':')
 		{
 			if(*q == '\0')
@@ -157,12 +126,6 @@ int main(int argc, char **argv)
 		*q = '\0';
 		++q;
 
-		if(i == 7)
-		{
-			printf("Invalid format: Weekday not found.\n");
-			return 1;
-		}
-
 		int h, m;
 		h = (p[0] - '0') * 10 + (p[1] - '0');
 		m = (q[0] - '0') * 10 + (q[1] - '0');
@@ -173,7 +136,6 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
-		alarms[num_alarms].Weekday = i;
 		alarms[num_alarms].Hour = h;
 		alarms[num_alarms].Minute = m;
 
@@ -189,11 +151,11 @@ int main(int argc, char **argv)
 			{
 				if(buf[j] == '#')
 				{
-					alarms[num_alarms].Icon[5 * i + j] = '1';
+					alarms[num_alarms].Icon[i] |= (1 << j);
 				}
 				else if(buf[j] == '-')
 				{
-					alarms[num_alarms].Icon[5 * i + j] = '0';
+					alarms[num_alarms].Icon[i] &= ~(1 << j);
 				}
 				else
 				{
@@ -210,34 +172,19 @@ int main(int argc, char **argv)
 
 	fclose(fp);
 
-	time_t now = time(NULL);
-	struct tm *tm_struct = localtime(&now);
-	hour = tm_struct->tm_hour;
-	minute = tm_struct->tm_min;
-	day = tm_struct->tm_wday;
-
-	/* Correct Time Zone */
-	if(++hour == 24)
-	{
-		hour = 0;
-	}
-
-	char *p = buf;
+	unsigned char out[512], *p = out;
 
 	*p++ = 'A';
 
-	*p++ = day + '0';
-	*p++ = (hour / 10) + '0';
-	*p++ = (hour % 10) + '0';
-	*p++ = (minute / 10) + '0';
-	*p++ = (minute % 10) + '0';
-	*p++ = num_alarms + '0';
+	p += 3;
+
+	*p++ = num_alarms;
 
 	printf("Number of Alarms: %d\n", num_alarms);
 
 	for(i = 0; i < num_alarms; ++i)
 	{
-		printf("Alarm %d: %s, %02d:%02d\n", i, _weekdays[alarms[i].Weekday], alarms[i].Hour, alarms[i].Minute);
+		printf("Alarm %d: %02d:%02d\n", i, alarms[i].Hour, alarms[i].Minute);
 
 		printf("Icon: +-----+\n");
 		for(j = 0; j < 5; ++j)
@@ -245,7 +192,7 @@ int main(int argc, char **argv)
 			printf("      |");
 			for(k = 0; k < 5; ++k)
 			{
-				printf("%c", alarms[i].Icon[j * 5 + k] == '1' ? '#' : ' ');
+				printf("%c", (alarms[i].Icon[j] & (1 << k)) ? '#' : ' ');
 			}
 
 			printf("|\n");
@@ -253,17 +200,33 @@ int main(int argc, char **argv)
 
 		printf("      +-----+\n\n");
 
-		*p++ = alarms[i].Weekday + '0';
-		*p++ = (alarms[i].Hour / 10) + '0';
-		*p++ = (alarms[i].Hour % 10) + '0';
-		*p++ = (alarms[i].Minute / 10) + '0';
-		*p++ = (alarms[i].Minute % 10) + '0';
-		strcpy(p, alarms[i].Icon);
-		p += 25;
+		*p++ = alarms[i].Hour;
+		*p++ = alarms[i].Minute;
+		memcpy(p, alarms[i].Icon, 5);
+		p += 5;
 	}
 
-	*p = '\0';
+	char *s, c;
+	s = argv[3];
+	*p++ = 10 + 'Z' - 65 + 1;
+	while((c = *s++))
+	{
+		if(isdigit(c))
+		{
+			*p++ = c - '0';
+		}
+		else if(c == ' ')
+		{
+			*p++ = 10 + 'Z' - 65 + 1;
+		}
+		else if(c >= 'A' && c <= 'Z')
+		{
+			*p++ = 10 + c - 65;
+		}
+	}
 
+	*p++ = 10 + 'Z' - 65 + 1;
+	*p++ = 0xFF;
 
 	port = argv[1];
 	if((fd = init_fd(port)) < 0)
@@ -301,10 +264,27 @@ int main(int argc, char **argv)
 		}
 	}
 
-	printf("\nCurrent Time: %s, %02d:%02d\n", _weekdays[day], hour, minute);
 	printf("\nTransfering data ...\n");
 
-	write(fd, buf, p - buf);
+	time_t now = time(NULL) + 60 * 60;
+	struct tm *tm_struct = localtime(&now);
+	hour = tm_struct->tm_hour;
+	minute = tm_struct->tm_min;
+	second = tm_struct->tm_sec;
+
+	/* Correct Time Zone */
+	if(++hour == 24)
+	{
+		hour = 0;
+	}
+
+	out[1] = hour;
+	out[2] = minute;
+	out[3] = second;
+
+	write(fd, out, p - out);
+
+	printf("\nCurrent Time: %02d:%02d\n", hour, minute);
 
 	for(;;)
 	{

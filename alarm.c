@@ -1,20 +1,20 @@
 typedef struct ALARM
 {
-	uint8_t Minutes, Hours, Weekday;
-	uint32_t Icon;
+	uint8_t Minutes, Hours;
+	uint8_t Icon[5];
 } Alarm;
 
 static volatile uint8_t _alarms_count;
-static volatile Alarm _alarms[6], *_alarm_cur;
+static volatile Alarm _alarms[4], *_alarm_cur;
 
-#define DELAY_SHORT  1100
-#define DELAY_LONG  15000
+#define DELAY_SHORT   15
+#define DELAY_LONG   224
 
 static void alarm_update(void)
 {
 	if(_mode == MODE_ALARM)
 	{
-		static uint16_t delay = DELAY_SHORT, cnt = 0;
+		static uint8_t delay = DELAY_SHORT, cnt = 0;
 		static uint8_t i;
 
 		if(++cnt == delay)
@@ -24,12 +24,12 @@ static void alarm_update(void)
 			if((i & 1) == 1)
 			{
 				_beep = 1;
-				_display = _alarm_cur->Icon;
+				display_set(_alarm_cur->Icon);
 			}
 			else
 			{
 				_beep = 0;
-				_display = 0;
+				display_set_P(display_clear);
 			}
 
 			if(i == 7)
@@ -51,8 +51,7 @@ static void alarm_update(void)
 		while(a >= _alarms)
 		{
 			if(a->Minutes == _minutes &&
-				a->Hours == _hours &&
-				a->Weekday == _weekday)
+				a->Hours == _hours)
 			{
 				_alarm_cur = a;
 				_mode = MODE_ALARM;

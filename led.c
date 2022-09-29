@@ -1,6 +1,11 @@
 #define BRIGHTNESS_FACTOR 10
 
-static uint32_t _display;
+static uint8_t _display[5];
+
+static const uint8_t display_clear[5] PROGMEM =
+{
+	0x00, 0x00, 0x00, 0x00, 0x00
+};
 
 static void led_init(void)
 {
@@ -9,9 +14,27 @@ static void led_init(void)
 	DDRD |= (1 << 6) | (1 << 5) | (1 << 4);
 }
 
+static void display_set(const uint8_t *value)
+{
+	_display[0] = value[0];
+	_display[1] = value[1];
+	_display[2] = value[2];
+	_display[3] = value[3];
+	_display[4] = value[4];
+}
+
+static void display_set_P(const uint8_t *value)
+{
+	_display[0] = pgm_read_byte(value + 0);
+	_display[1] = pgm_read_byte(value + 1);
+	_display[2] = pgm_read_byte(value + 2);
+	_display[3] = pgm_read_byte(value + 3);
+	_display[4] = pgm_read_byte(value + 4);
+}
+
 static void _led_set(uint8_t line)
 {
-	uint8_t j = 5 * line;
+	uint8_t j = 0;
 
 	/* Disable all lines */
 	PORTB &= ~((1 << 7) |
@@ -31,31 +54,31 @@ static void _led_set(uint8_t line)
 	PORTD |= (1 << 6) |
 			(1 << 5);
 
-	if(_display & (1UL << j))
+	if(_display[line] & (1 << j))
 	{
 		PORTB &= ~(1 << 2);
 	}
 
 	++j;
-	if(_display & (1UL << j))
+	if(_display[line] & (1 << j))
 	{
 		PORTB &= ~(1 << 1);
 	}
 
 	++j;
-	if(_display & (1UL << j))
+	if(_display[line] & (1 << j))
 	{
 		PORTB &= ~(1 << 0);
 	}
 
 	++j;
-	if(_display & (1UL << j))
+	if(_display[line] & (1 << j))
 	{
 		PORTD &= ~(1 << 6);
 	}
 
 	++j;
-	if(_display & (1UL << j))
+	if(_display[line] & (1 << j))
 	{
 		PORTD &= ~(1 << 5);
 	}

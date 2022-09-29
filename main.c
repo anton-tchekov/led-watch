@@ -4,14 +4,20 @@
 #include <avr/interrupt.h>
 #include <string.h>
 #include <stdint.h>
+
+static void tick(void);
+
 #include "led.c"
 #include "timer.c"
 #include "piezo.c"
 
 #define MODE_IDLE   0
-#define MODE_CLOCK  1
-#define MODE_UART   2
+#define MODE_UART   1
+
+#define MODE_CLOCK  2
 #define MODE_ALARM  3
+#define MODE_RANDOM 4
+#define MODE_TEXT   5
 
 static volatile uint8_t _mode;
 
@@ -19,7 +25,7 @@ static void mode_idle(void)
 {
 	_mode = MODE_IDLE;
 	_beep = 0;
-	_display = 0;
+	display_set_P(display_clear);
 }
 
 #include "button.c"
@@ -27,19 +33,8 @@ static void mode_idle(void)
 #include "clock.c"
 #include "uart.c"
 #include "alarm.c"
-
-static uint8_t get_digit(void)
-{
-	return uart_rx() - '0';
-}
-
-static uint8_t parse_digits(void)
-{
-	uint8_t c, d;
-	c = get_digit();
-	d = get_digit();
-	return c * 10 + d;
-}
+#include "random.c"
+#include "text.c"
 
 int main(void)
 {
@@ -51,6 +46,8 @@ int main(void)
 next:
 		if(_mode == MODE_UART)
 		{
+			uint8_t i, j;
+
 			/* Command Start */
 			while(uart_rxc() != 'A')
 			{
@@ -61,33 +58,35 @@ next:
 			}
 
 			/* Set Clock Command: */
-			/* [WEEKDAY 0-6][HOUR 00-23][MINUTE 0-59] */
-			_weekday = get_digit();
-			_hours = parse_digits();
-			_minutes = parse_digits();
+			/* [WEEKDAY 0-6][HOUR 00-23][MINUTE 0-59][SECOND 0-59] */
+			_hours = uart_rx();
+			_minutes = uart_rx();
+			_seconds = uart_rx();
 
 			/* Set Alarms Command: */
 			/* [ALARM COUNT 0-8] */
-			/* N x [WEEKDAY 0-6][HOUR 00-23][MINUTE 0-59][ICON (25 Chars)] */
-			_alarms_count = get_digit();
-			uint8_t i, j;
+			/* N x [WEEKDAY 0-6][HOUR 00-23][MINUTE 0-59][ICON 5 Bytes] */
+			_alarms_count = uart_rx();
 			for(i = 0; i < _alarms_count; ++i)
 			{
-				_alarms[i].Weekday = get_digit();
-				_alarms[i].Hours = parse_digits();
-				_alarms[i].Minutes = parse_digits();
-				_alarms[i].Icon = 0;
-				for(j = 0; j < 25; ++j)
+				_alarms[i].Hours = uart_rx();
+				_alarms[i].Minutes = uart_rx();
+				for(j = 0; j < 5; ++j)
 				{
-					if(uart_rx() == '1')
-					{
-						_alarms[i].Icon |= (1UL << (uint32_t)j);
-					}
+					_alarms[i].Icon[j] = uart_rx();
 				}
 			}
 
+			j = 0;
+			do
+			{
+				i = uart_rx();
+				_text[j++] = i;
+			}
+			while(i != 0xFF);
+
 			uart_tx_str_P(PSTR("ACK\n"));
-			mode_idle();
+			mode_uart_button();
 		}
 	}
 
@@ -96,15 +95,23 @@ next:
 
 ISR(TIMER0_COMPA_vect)
 {
+	timer_update();
+	piezo_update();
+	led_update();
+}
+
+static void tick(void)
+{
 	if(_mode == MODE_CLOCK)
 	{
 		scroll_update();
 	}
+	else if(_mode == MODE_TEXT)
+	{
+		text_update();
+	}
 
-	timer_update();
-	piezo_update();
 	button_update();
-	led_update();
 	alarm_update();
 }
 
@@ -114,6 +121,14 @@ static void mode_idle_button(uint8_t button)
 	{
 		case 0:
 			mode_clock();
+			break;
+
+		case 1:
+			mode_random();
+			break;
+
+		case 2:
+			mode_text();
 			break;
 
 		case 3:
@@ -130,13 +145,15 @@ static void button_event(uint8_t button)
 			mode_idle_button(button);
 			break;
 
-		case MODE_CLOCK:
-		case MODE_ALARM:
-			mode_idle();
-			break;
-
 		case MODE_UART:
 			mode_uart_button();
+			break;
+
+		case MODE_CLOCK:
+		case MODE_ALARM:
+		case MODE_RANDOM:
+		case MODE_TEXT:
+			mode_idle();
 			break;
 	}
 }

@@ -1,0 +1,44 @@
+static const uint8_t _die[6 * 5] PROGMEM =
+{
+	0b00000UL,
+	0b00000UL,
+	0b00100UL,
+	0b00000UL,
+	0b00000UL,
+
+	0b00001UL,
+	0b00000UL,
+	0b00000UL,
+	0b00000UL,
+	0b10000UL,
+
+	0b00001UL,
+	0b00000UL,
+	0b00100UL,
+	0b00000UL,
+	0b10000UL,
+
+	0b10001UL,
+	0b00000UL,
+	0b00000UL,
+	0b00000UL,
+	0b10001UL,
+
+	0b10001UL,
+	0b00000UL,
+	0b00100UL,
+	0b00000UL,
+	0b10001UL,
+
+	0b10001UL,
+	0b00000UL,
+	0b10001UL,
+	0b00000UL,
+	0b10001UL,
+};
+
+static void mode_random(void)
+{
+	_mode = MODE_RANDOM;
+	display_set_P(&_die[5 * (_ticks % 6)]);
+}

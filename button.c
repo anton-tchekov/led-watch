@@ -1,7 +1,7 @@
 #define BUTTON_COUNT           4
-#define BUTTON_PRESS_TICKS   750
+#define BUTTON_PRESS_TICKS    12
 
-static uint16_t button_ticks[BUTTON_COUNT];
+static uint8_t button_ticks[BUTTON_COUNT];
 
 static void button_event(uint8_t button);
 

@@ -47,15 +47,18 @@ static void uart_tx_str_P(const char *s)
 	}
 }
 
+static const uint8_t _uart_icon[5] PROGMEM =
+{
+	0b01000UL,
+	0b11111UL,
+	0b01000UL,
+	0b01011UL,
+	0b01010UL
+};
+
 static void mode_uart(void)
 {
-	_display =
-		(0b01000UL <<  0UL) |
-		(0b11111UL <<  5UL) |
-		(0b01000UL << 10UL) |
-		(0b01011UL << 15UL) |
-		(0b01010UL << 20UL);
-
+	display_set_P(_uart_icon);
 	uart_init();
 	_mode = MODE_UART;
 }
